@@ -140,7 +140,9 @@ def add_static(app):
 def add_route(app,fn):
     method = getattr(fn,'__method__',None)
     path = getattr(fn,'__route__', None)
-    if path in None or method is None:
+    print(method)
+    print(path)
+    if path is None or method is None:
         raise ValueError('@get or @post not defined in %s.' % str(fn))
     if not asyncio.iscoroutinefunction(fn) and not inspect.isgeneratorfunction(fn):
         fn = asyncio.coroutine(fn)
