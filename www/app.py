@@ -69,7 +69,8 @@ async def response_factory(app,handler):
         if isinstance(r,dict):
             template = r.get('__template__')
             if template is None:
-                resp = web.Response(body=json.dump(r,ensure_ascii=Flase,default=lambda o: o.__dict__).encode('utf-8'))
+                print(r)
+                resp = web.Response(body=json.dumps(r,ensure_ascii=False,default=lambda o: o.__dict__).encode('utf-8'))
                 resp.content_type = 'application/json;charset=utf-8'
                 return resp
             else:
@@ -87,6 +88,7 @@ async def response_factory(app,handler):
         resp.content_type = 'text/plain;charset=utf-8'
     return response
 
+#将浮点数转化为日期字符串
 def datetime_filter(t):
     delta = int(time.time() - t)
     if delta < 60:
@@ -108,7 +110,7 @@ async def init(loop):
     init_jinja2(app, filters=dict(datetime=datetime_filter))
     add_routes(app,'handlers')
     add_static(app)
-    srv = await loop.create_server(app.make_handler(),'127.0.0.1',9008)
+    srv = await loop.create_server(app.make_handler(),'127.0.0.1',9000)
     logging.info('server started at http://127.0.0.1:9000...')
     return srv
 
