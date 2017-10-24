@@ -175,6 +175,7 @@ class Model(dict,metaclass=ModelMetaclass):
     @classmethod
     async def findAll(cls,where=None,args=None,**kw):
         sql = [cls.__select__]
+        print(sql)
         if where:
             sql.append('where')
             sql.append(where)
