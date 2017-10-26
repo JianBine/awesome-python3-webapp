@@ -4,6 +4,7 @@ __author__ = 'mibine'
 
 'url handles'
 
+import markdown2
 import re,time,json,logging,hashlib,base64,asyncio
 from coroweb import get,post
 from models import User,Comment,Blog,next_id
@@ -27,9 +28,13 @@ def get_page_index(page_str):
     return p
 
 #检验是不是管理员
-def check_name(request):
+def check_admin(request):
     if request.__user__ is None or not request.__user__.admin:
         raise APIPermissionError()
+
+def text2html(text):
+    lines = map(lambda s: '<p>%s</p>' % s.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'),filter(lambda s: s.strip() != '',text.split('\n')))
+    return ''.join(lines)
 
 def user2cookie(user, max_age):
     '''
@@ -70,13 +75,8 @@ async def cookie2user(cookie_str):
 
 @get('/')
 async def index(request):
-    summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
-    blogs = [
-        Blog(id='1', name='Test Blog', summary=summary, created_at=time.time()-120),
-        Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
-        Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
-    ]
-    user = User(name="mibine")
+    blogs = await Blog.findAll()
+    user = request.__user__
     return {
         '__template__': 'blogs.html',
         'blogs': blogs,
@@ -183,7 +183,7 @@ async def api_blogs(*,page='1'):
 #发布文章
 @post('/api/blogs')
 async def api_create_blog(request,*,name,summary,content):
-    check_name(request)
+    check_admin(request)
     if not name:
         raise APIValueError('name','name cannot be empty')
     if not summary:
@@ -195,10 +195,27 @@ async def api_create_blog(request,*,name,summary,content):
 
     return blog
 
-#文章详情
+#文章编辑详情
 @get('/api/blogs/{id}')
 async def api_get_blog(*,id):
     blog = await Blog.find(id)
+    return blog
+
+#文章更新
+@post('/api/blogs/{id}')
+async def api_update_blog(id,request,*,name,summary,content):
+    check_admin(request)
+    blog = await Blog.find(id)
+    if not name or not name.strip():
+        raise APIValueError('name', 'name cannot be empty.')
+    if not summary or not summary.strip():
+        raise APIValueError('summary', 'summary cannot be empty.')
+    if not content or not content.strip():
+        raise APIValueError('content', 'content cannot be empty.')
+    blog.name = name
+    blog.summary = summary
+    blog.content = content
+    await blog.update()
     return blog
 
 @get('/manage/blogs')
@@ -207,6 +224,57 @@ def manage_blogs(*,page='1'):
         '__template__':'manage_blogs.html',
         'page_index':get_page_index(page)
     }
+
+#编辑文章
+@get('/manage/blogs/edit')
+def manage_edit_blog(*,id):
+    return {
+        '__template__':'manage_blog_edit.html',
+        'id':id,
+        'action':'/api/blogs/%s' % id
+    }
+
+#删除文章
+@post('/api/blogs/{id}/delete')
+async def api_delete_blog(request,*,id):
+    check_admin(request)
+    blog = await Blog.find(id)
+    await blog.remove()
+    return dict(id=id)
+
+@get('/blog/{id}')
+async def get_blog(id,request):
+    blog = await Blog.find(id)
+    comments = await Comment.findAll('blog_id=?',[id],orderBy='created_at desc')
+    for c in comments:
+        c.html_content = text2html(c.content)
+    blog.html_content = markdown2.markdown(blog.content)
+    user = request.__user__
+    return {
+        '__template__':'blog.html',
+        'blog':blog,
+        'comments':comments,
+        '__user__':user
+    }
+
+@get('/manage/users')
+def manage_users(*, page='1'):
+    return {
+        '__template__': 'manage_users.html',
+        'page_index': get_page_index(page)
+    }
+@get('/api/users')
+async def api_get_users(*, page='1'):
+    page_index = get_page_index(page)
+    num = await User.findNumber('count(id)')
+    p = Page(num,page_index)
+    if num == 0:
+        return dict(page=p,users=())
+    users = await User.findAll(orderBy='created_at desc',limit=(p.offset,p.limit))
+    for u in users:
+        u.passwd = '******'
+    return dict(page=p,users=users)
+    
 #/manage/comments评论
 #/manage/blogs日志
 #/manage/users

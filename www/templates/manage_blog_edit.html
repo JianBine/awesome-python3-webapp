@@ -19,9 +19,7 @@ function initVM(blog) {
                 $form.postJSON(action, this.$data, function (err, r) {
                     if (err) {
                         $form.showFormError(err);
-                    }
-                    else {
-                        alert(r.id);
+                    }else {
                         return location.assign('/api/blogs/' + r.id);
                     }
                 });
