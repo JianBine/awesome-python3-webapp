@@ -116,8 +116,8 @@ function gotoPage(i) {
 }
 function refresh() {
 	var
-	t = new Date().getTime(),
-	url = location.pathname;
+		t = new Date().getTime(),
+		url = location.pathname;
 	if (location.search) {
 		url = url + location.search + '&t=' + t;
 	}
@@ -339,6 +339,7 @@ if (typeof(Vue)!=='undefined') {
             '</ul>'
     });
 }
+
 function redirect(url) {
 	var
 	hash_pos = url.indexOf('#'),
